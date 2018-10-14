@@ -52,3 +52,4 @@ void cpuCycle(cpu_t *c, mem_t *mem) {
 
   jtable[EXTRACT(inst, 2, 5)](inst, c, mem);
 }
+

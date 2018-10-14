@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 
 #include "inst.h"
@@ -26,13 +27,15 @@
 
 void instUnsupported(uint32_t inst, cpu_t *c, mem_t *mem) {
   fprintf(stderr, "error: unsupported instruction 0x%032x\n", inst);
+
+  exit(EXIT_FAILURE);
 }
 
 void instLoad(uint32_t inst, cpu_t *c, mem_t *mem) {
-  uint32_t funct3 = EXTRACT(inst, 12, 3);
-  uint32_t rd = EXTRACT(inst, 7, 5);
-  uint32_t rs1 = EXTRACT(inst, 15, 5);
-  int64_t offset = (int64_t) EXTRACT(inst, 20, 12);
+  uint32_t funct3 = DECODE_FUNCT3(inst); 
+  uint32_t rd = DECODE_RD(inst);
+  uint32_t rs1 = DECODE_RS1(inst);
+  uint64_t offset = SIGN_EXTEND_64U(DECODE_IMM_I(inst), 12);
 
   uint32_t w;
   uint16_t h;
@@ -42,15 +45,15 @@ void instLoad(uint32_t inst, cpu_t *c, mem_t *mem) {
   switch(funct3) {
     case LOAD_LB:
       memRead(mem, c->reg[rs1] + offset, 1, &b);
-      c->reg[rd] = (int8_t) b;
+      c->reg[rd] = SIGN_EXTEND_64U((uint64_t) b, 8);
       break;
     case LOAD_LH:
       memRead(mem, c->reg[rs1] + offset, 2, (uint8_t*) &h);
-      c->reg[rd] = (int16_t) h;
+      c->reg[rd] = SIGN_EXTEND_64U((uint64_t) h, 16);
       break;
     case LOAD_LW:
       memRead(mem, c->reg[rs1] + offset, 4, (uint8_t*) &w);
-      c->reg[rd] = (int32_t) w;
+      c->reg[rd] = SIGN_EXTEND_64U((uint64_t) w, 32);
       break;
     case LOAD_LBU:
       memRead(mem, c->reg[rs1] + offset, 1, &b);
@@ -112,20 +115,21 @@ void instOpImm32(uint32_t inst, cpu_t *c, mem_t *mem) {
 }
 
 void instOp(uint32_t inst, cpu_t *c, mem_t *mem) {
-  uint32_t op = (EXTRACT(inst, 25, 7) << 3) | (EXTRACT(inst, 12, 3));
-  uint32_t rd = EXTRACT(inst, 7, 5);
-  uint32_t rs1 = EXTRACT(inst, 15, 5);
-  uint32_t rs2 = EXTRACT(inst, 20, 5);
+  uint32_t op = (DECODE_FUNCT7(inst) << 3) | DECODE_FUNCT3(inst);
+  uint32_t rd = DECODE_RD(inst);
+  uint32_t rs1 = DECODE_RS1(inst);
+  uint32_t rs2 = DECODE_RS2(inst);
 
   switch(op) {
     case OP_ADD:
+      printf("add x%u, x%u, x%u\n", rd, rs1, rs2);
       c->reg[rd] = c->reg[rs1] + c->reg[rs2];
       break;
     case OP_SUB:
       c->reg[rd] = c->reg[rs1] + (~c->reg[rs2] + 1);
       break;
     case OP_SLL:
-      c->reg[rd] = c->reg[rs1] << EXTRACT(c->reg[rs2], 0, 5);
+      c->reg[rd] = c->reg[rs1] << EXTRACT(c->reg[rs2], 0, 6);
       break;
     case OP_SLT:
       c->reg[rd] = !!(((int64_t) c->reg[rs1]) < ((int64_t) c->reg[rs2]));
@@ -137,10 +141,10 @@ void instOp(uint32_t inst, cpu_t *c, mem_t *mem) {
       c->reg[rd] = c->reg[rs1] ^ c->reg[rs2];
       break;
     case OP_SRL:
-      c->reg[rd] = c->reg[rs1] >> EXTRACT(c->reg[rs2], 0, 5);
+      c->reg[rd] = c->reg[rs1] >> EXTRACT(c->reg[rs2], 0, 6);
       break;
     case OP_SRA:
-      c->reg[rd] = (uint64_t) (((int64_t) c->reg[rs1]) >> EXTRACT(c->reg[rs2], 0, 5));
+      c->reg[rd] = (uint64_t) (((int64_t) c->reg[rs1]) >> EXTRACT(c->reg[rs2], 0, 6));
       break;
     case OP_OR:
       c->reg[rd] = c->reg[rs1] | c->reg[rs2];
@@ -167,12 +171,10 @@ void instOpFp(uint32_t inst, cpu_t *c, mem_t *mem) {
 }
 
 void instMadd(uint32_t inst, cpu_t *c, mem_t *mem) {
-  printf("MADD\n");
   instUnsupported(inst, c, mem);
 }
 
 void instNmadd(uint32_t inst, cpu_t *c, mem_t *mem) {
-  printf("NMADD\n");
   instUnsupported(inst, c, mem);
 }
 
@@ -189,18 +191,43 @@ void instBranch(uint32_t inst, cpu_t *c, mem_t *mem) {
 }
 
 void instJalr(uint32_t inst, cpu_t *c, mem_t *mem) {
-  
+  uint32_t rd = DECODE_RD(inst);
+  uint32_t rs1 = DECODE_RS1(inst);
+  uint64_t dest = c->reg[rs1] + SIGN_EXTEND_64U((uint64_t) DECODE_IMM_I(inst), 12); 
+  /* zero out the LSB */
+  dest &= UINT64_MAX - 1;
+
+  if(!ALIGNED(dest, BASE_ALIGNMENT)) {
+    fprintf(stderr, "misaligned instruction fetch exception: 0x%lx\n", dest);
+
+    exit(EXIT_FAILURE);
+  }
+
+  /* LSB is zeroed out above */
+  c->pc = dest;
+
+  if(rd)
+    c->reg[rd] = c->pc + 4;
 }
 
 void instJal(uint32_t inst, cpu_t *c, mem_t *mem) {
-  uint32_t rd = EXTRACT(inst, 7, 5);
-  uint64_t offset = (EXTRACT(inst, 31, 1) ? 0xFFFFFFFFFF000000 : 0x0) |
-                    (EXTRACT(inst, 12, 8) << 0XB) |
-                    (EXTRACT(inst, 20, 1) << 0xA) |
-                    EXTRACT(inst, 21, 10);
+  uint32_t rd = DECODE_RD(inst);
+  /* potentially very wrong */
+  uint64_t offset = SIGN_EXTEND_64U((uint64_t) DECODE_IMM_J(inst), 20);
 
-  c->pc += offset + offset;
-  
+  /* 2 byte aligned */
+  uint64_t dest = c->pc + offset + offset;
+
+  if(!ALIGNED(dest, BASE_ALIGNMENT)) {
+    fprintf(stderr, "misaligned instruction fetch exception: 0x%lx\n", dest);
+
+    exit(EXIT_FAILURE);
+  }
+
+  c->pc = dest;
+ 
+  printf("offset = 0x%lx\n", offset);
+
   if(rd)
     c->reg[rd] = c->pc + 4;
 }

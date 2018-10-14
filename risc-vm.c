@@ -18,20 +18,19 @@ int main(int argc, char **argv) {
   memAlloc(&mem, MEM_SIZE);
 
   uint32_t loadinst = 0x83;
-  uint32_t inst = 0x2081B3;
+  uint32_t inst = 0x3101B3;
   uint32_t inst2 = 0x31C1B3;
+  uint32_t jinst = 0xFFDFF16F;
 
   memWrite(&mem, 0, 4, (uint8_t*) &loadinst);
   memWrite(&mem, 4, 4, (uint8_t*) &inst);
-  memWrite(&mem, 8, 4, (uint8_t*) &inst2);
+  //memWrite(&mem, 8, 4, (uint8_t*) &inst2);
+  memWrite(&mem, 8, 4, (uint8_t*) &jinst);
 
-  cpuPrint(&c);
-  cpuCycle(&c, &mem);
-  cpuPrint(&c);
-  cpuCycle(&c, &mem);
-  cpuPrint(&c);
-  cpuCycle(&c, &mem);
-  cpuPrint(&c);
+  while(1) {
+    cpuCycle(&c, &mem);
+    cpuPrint(&c);
+  }
 
   memDump(&mem);
 
