@@ -1,14 +1,39 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-
+#include <string.h>
 #include <assert.h>
 
 #include "cpu.h"
 #include "mem.h"
 #include "inst.h"
 
-#define MEM_SIZE 1024U
+#define MEM_SIZE 4096U
+
+uint32_t revBitsU32(uint32_t n) {
+  uint32_t res = 0;
+
+  uint8_t i;
+  for(i = 0; i < 32; ++i)
+    if((n & (1 << i)))
+      res |= 1 << (31 - i);
+
+  return res;
+}
+
+uint32_t binStrToU32(const char *s) {
+  uint32_t res = 0;
+  char c;
+
+  uint8_t i = 0;
+  while((c = *s++)) {
+    /* ignore other chars */
+    if(c == '0' || c == '1')
+      res |= (c - '0') << i++;
+  }
+  
+  return revBitsU32(res);
+}
 
 int main(int argc, char **argv) {
   cpu_t c;
@@ -17,17 +42,34 @@ int main(int argc, char **argv) {
   cpuInit(&c);
   memAlloc(&mem, MEM_SIZE);
 
-  uint32_t loadinst = 0x83;
-  uint32_t inst = 0x3101B3;
-  uint32_t inst2 = 0x31C1B3;
-  uint32_t jinst = 0xFFDFF16F;
+  uint8_t inc = 1;
+  uint8_t count = 10;
 
-  memWrite(&mem, 0, 4, (uint8_t*) &loadinst);
-  memWrite(&mem, 4, 4, (uint8_t*) &inst);
-  //memWrite(&mem, 8, 4, (uint8_t*) &inst2);
-  memWrite(&mem, 8, 4, (uint8_t*) &jinst);
+  /*
+   * 0x00:
+   * lbu x1, x0 + 0xFE
+   * lbu x3, x0 + 0xFF
+   * xor x2, x2, x2
+   *
+   * 0x10:
+   * add x2, x2, x1
+   * bltu x2, x3, 0x00
+   */
+  const uint32_t prog[] = {
+    binStrToU32("000011111110 00000 100 00001 0000011"),
+    binStrToU32("000011111111 00000 100 00011 0000011"),
+    binStrToU32("0000000 00010 00010 100 00010 0110011"),
+    binStrToU32("0000000 00010 00001 000 00010 0110011"),
+    binStrToU32("1111111 00011 00010 110 11101 1100011")
+  };
 
+  memWrite(&mem, 0, sizeof(prog), (uint8_t*) &prog);
+  memWrite(&mem, 0xFE, 1, &inc);
+  memWrite(&mem, 0xFF, 1, &count);
+
+  uint64_t i = 0;
   while(1) {
+    printf("cycle %ld\n", i++);
     cpuCycle(&c, &mem);
     cpuPrint(&c);
   }

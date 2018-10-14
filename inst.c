@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -5,14 +6,6 @@
 #include "util.h"
 #include "cpu.h"
 #include "mem.h"
-
-#define LOAD_LB 0x0
-#define LOAD_LH 0x1
-#define LOAD_LW 0x2
-#define LOAD_LD 0x3
-#define LOAD_LBU 0x4
-#define LOAD_LHU 0x5
-#define LOAD_LWU 0x6
 
 #define OP_ADD  0x000
 #define OP_SUB  0x100
@@ -24,6 +17,21 @@
 #define OP_SRA  0x105
 #define OP_OR   0x006
 #define OP_AND  0x007
+
+#define BRANCH_BEQ 0x0
+#define BRANCH_BNE 0x1
+#define BRANCH_BLT 0x4
+#define BRANCH_BGE 0x5
+#define BRANCH_BLTU 0x6
+#define BRANCH_BGEU 0x7
+
+#define LOAD_LB 0x0
+#define LOAD_LH 0x1
+#define LOAD_LW 0x2
+#define LOAD_LD 0x3
+#define LOAD_LBU 0x4
+#define LOAD_LHU 0x5
+#define LOAD_LWU 0x6
 
 void instUnsupported(uint32_t inst, cpu_t *c, mem_t *mem) {
   fprintf(stderr, "error: unsupported instruction 0x%032x\n", inst);
@@ -187,7 +195,50 @@ void instNmsub(uint32_t inst, cpu_t *c, mem_t *mem) {
 }
 
 void instBranch(uint32_t inst, cpu_t *c, mem_t *mem) {
-  instUnsupported(inst, c, mem);
+  uint32_t funct3 = DECODE_FUNCT3(inst);
+  uint32_t rs1 = DECODE_RS1(inst);
+  uint32_t rs2 = DECODE_RS2(inst);
+  /* multiples of 2 */
+  uint64_t offset = SIGN_EXTEND_64U((uint64_t) DECODE_IMM_B(inst), 12) << 1;
+  bool branch = false;
+
+  printf("offset = %ld\n", (int64_t) offset);
+
+  switch(funct3) {
+    case BRANCH_BEQ:
+      branch = (c->reg[rs1] == c->reg[rs2]);
+      break;
+    case BRANCH_BNE:
+      branch = (c->reg[rs1] != c->reg[rs2]);
+      break;
+    case BRANCH_BLT:
+      branch = (((int64_t) c->reg[rs1]) < ((int64_t) c->reg[rs2]));
+      break;
+    case BRANCH_BGE:
+      branch = (((int64_t) c->reg[rs1]) >= ((int64_t) c->reg[rs2]));
+      break;
+    case BRANCH_BLTU:
+      branch = (c->reg[rs1] < c->reg[rs2]);
+      break;
+    case BRANCH_BGEU:
+      branch = (c->reg[rs1] >= c->reg[rs2]);
+      break;
+    default:
+      instUnsupported(inst, c, mem);
+      break;
+  }
+
+  if(branch) {
+    if(!ALIGNED(c->pc + offset, BASE_ALIGNMENT)) {
+      fprintf(stderr, "misaligned instruction fetch exception: 0x%lx\n", c->pc + offset);
+
+      exit(EXIT_FAILURE);
+    }
+
+    c->pc += offset;
+  } else {
+    c->pc += 4;
+  }
 }
 
 void instJalr(uint32_t inst, cpu_t *c, mem_t *mem) {

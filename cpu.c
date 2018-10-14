@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 
@@ -39,13 +40,15 @@ void cpuCycle(cpu_t *c, mem_t *mem) {
   uint32_t inst;
   if(!memRead(mem, c->pc, 4, (uint8_t*) &inst)) {
     fprintf(stderr, "error: failed to fetch next instruction\n");
-    
+
     /* value? */
     return;
   }
 
   if((inst & 0x3) != 0x3) {
     fprintf(stderr, "error: encountered non-base instruction\n");
+
+    exit(EXIT_FAILURE);
 
     return;
   }
