@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -68,9 +69,8 @@ int main(int argc, char **argv) {
   memWrite(&mem, 0xFF, 1, &count);
 
   uint64_t i = 0;
-  while(1) {
-    printf("cycle %ld\n", i++);
-    cpuCycle(&c, &mem);
+  while(cpuCycle(&c, &mem) == CPU_CYCLE_OK) {
+    printf("cycle %" PRIu64 "\n", i++);
     cpuPrint(&c);
   }
 

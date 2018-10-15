@@ -1,4 +1,10 @@
+!*/
+
 *.o
 risc-vm
 tests
+asm/asm
+*.dSYM/
+
+.DS_Store
 

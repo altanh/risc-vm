@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #include "util.h"
 #include "inst.h"
@@ -18,12 +19,12 @@ void cpuInit(cpu_t *c) {
 void cpuPrint(cpu_t *c) {
   size_t i;
   for(i = 0; i < CPU_REG_COUNT; ++i)
-    printf("x%02zd: 0x%016lx\n", i, c->reg[i]);
+    printf("x%02zd: 0x%016" PRIx64 "\n", i, c->reg[i]);
 
-  printf(" pc: 0x%016lx\n", c->pc);
+  printf(" pc: 0x%016" PRIx64 "\n", c->pc);
 }
 
-void cpuCycle(cpu_t *c, mem_t *mem) {
+int cpuCycle(cpu_t *c, mem_t *mem) {
   assert(ALIGNED(c->pc, BASE_ALIGNMENT));
 
   static inst_t jtable[32] = {
@@ -41,18 +42,17 @@ void cpuCycle(cpu_t *c, mem_t *mem) {
   if(!memRead(mem, c->pc, 4, (uint8_t*) &inst)) {
     fprintf(stderr, "error: failed to fetch next instruction\n");
 
-    /* value? */
-    return;
+    return CPU_CYCLE_FAIL;
   }
 
   if((inst & 0x3) != 0x3) {
     fprintf(stderr, "error: encountered non-base instruction\n");
 
-    exit(EXIT_FAILURE);
-
-    return;
+    return CPU_CYCLE_FAIL;
   }
 
   jtable[EXTRACT(inst, 2, 5)](inst, c, mem);
+
+  return CPU_CYCLE_OK;
 }
 

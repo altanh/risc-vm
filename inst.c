@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -34,7 +35,7 @@
 #define LOAD_LWU 0x6
 
 void instUnsupported(uint32_t inst, cpu_t *c, mem_t *mem) {
-  fprintf(stderr, "error: unsupported instruction 0x%032x\n", inst);
+  fprintf(stderr, "error: unsupported instruction 0x%08" PRIx32 "\n", inst);
 
   exit(EXIT_FAILURE);
 }
@@ -130,7 +131,6 @@ void instOp(uint32_t inst, cpu_t *c, mem_t *mem) {
 
   switch(op) {
     case OP_ADD:
-      printf("add x%u, x%u, x%u\n", rd, rs1, rs2);
       c->reg[rd] = c->reg[rs1] + c->reg[rs2];
       break;
     case OP_SUB:
@@ -202,8 +202,6 @@ void instBranch(uint32_t inst, cpu_t *c, mem_t *mem) {
   uint64_t offset = SIGN_EXTEND_64U((uint64_t) DECODE_IMM_B(inst), 12) << 1;
   bool branch = false;
 
-  printf("offset = %ld\n", (int64_t) offset);
-
   switch(funct3) {
     case BRANCH_BEQ:
       branch = (c->reg[rs1] == c->reg[rs2]);
@@ -230,7 +228,7 @@ void instBranch(uint32_t inst, cpu_t *c, mem_t *mem) {
 
   if(branch) {
     if(!ALIGNED(c->pc + offset, BASE_ALIGNMENT)) {
-      fprintf(stderr, "misaligned instruction fetch exception: 0x%lx\n", c->pc + offset);
+      fprintf(stderr, "misaligned instruction fetch exception: 0x%" PRIx64 "\n", c->pc + offset);
 
       exit(EXIT_FAILURE);
     }
@@ -249,7 +247,7 @@ void instJalr(uint32_t inst, cpu_t *c, mem_t *mem) {
   dest &= UINT64_MAX - 1;
 
   if(!ALIGNED(dest, BASE_ALIGNMENT)) {
-    fprintf(stderr, "misaligned instruction fetch exception: 0x%lx\n", dest);
+    fprintf(stderr, "misaligned instruction fetch exception: 0x%" PRIx64 "\n", dest);
 
     exit(EXIT_FAILURE);
   }
@@ -270,14 +268,12 @@ void instJal(uint32_t inst, cpu_t *c, mem_t *mem) {
   uint64_t dest = c->pc + offset + offset;
 
   if(!ALIGNED(dest, BASE_ALIGNMENT)) {
-    fprintf(stderr, "misaligned instruction fetch exception: 0x%lx\n", dest);
+    fprintf(stderr, "misaligned instruction fetch exception: 0x%" PRIx64 "\n", dest);
 
     exit(EXIT_FAILURE);
   }
 
   c->pc = dest;
- 
-  printf("offset = 0x%lx\n", offset);
 
   if(rd)
     c->reg[rd] = c->pc + 4;

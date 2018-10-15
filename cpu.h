@@ -7,6 +7,9 @@
 
 #define CPU_REG_COUNT 32
 
+#define CPU_CYCLE_FAIL 0
+#define CPU_CYCLE_OK 1
+
 typedef struct {
   uint64_t reg[CPU_REG_COUNT];
   uint64_t pc;
@@ -15,6 +18,6 @@ typedef struct {
 void cpuInit(cpu_t *c);
 void cpuPrint(cpu_t *c);
 
-void cpuCycle(cpu_t *c, mem_t *mem);
+int cpuCycle(cpu_t *c, mem_t *mem);
 
 #endif
