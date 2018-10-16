@@ -2,7 +2,9 @@
 #include <cstdlib>
 #include <fstream>
 #include <string>
+#include <iomanip>
 
+#include "parser.h"
 #include "lexer.h"
 #include "token.h"
 
@@ -23,11 +25,20 @@ int main(int argc, char **argv) {
 
   Lexer lex;
 
+  std::cout << "-- running lexical analysis on \"" << argv[1] << "\"" << std::endl;
   lex.tokenize(file);
 
-  std::cout << "Tokens:" << std::endl;
+  std::cout << "-- tokens:" << std::endl;
   for(const auto &tok : lex.getTokens()) {
-    std::cout << "{" << tok.lexeme << ", " << TokenTypeStrings[tok.type] << "}" << std::endl;
+    std::cout << "{" << tok->lexeme << ", " << tok::kTypeNames[tok->type] << "}" << std::endl;
+  }
+
+  Parser par;
+
+  if(!par.parse(lex.getTokens())) {
+    std::cerr << "-- parsing failed, terminating." << std::endl;
+
+    return EXIT_FAILURE;
   }
 
   return EXIT_SUCCESS;

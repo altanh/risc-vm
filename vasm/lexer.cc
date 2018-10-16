@@ -9,7 +9,9 @@ Lexer::Lexer() : _tokens() {
 }
 
 Lexer::~Lexer() {
-
+  for(tok::Token *ptr : _tokens)
+    if(ptr)
+      delete ptr;
 }
 
 void Lexer::tokenize(std::istream &is) {
@@ -29,23 +31,23 @@ void Lexer::tokenizeLine(const std::string &line) {
     if(line[i] == '\"' && (i == 0 || (line[i - 1] != '\\'))) {
       if(in_string) {
         // TODO: process escape sequences
-        _tokens.push_back({line.substr(lexeme_start, i - lexeme_start), TokenType::kLitString});
+        _tokens.push_back(new tok::LitString(line.substr(lexeme_start, i - lexeme_start)));
 
         in_lexeme = false;
       }
 
       in_string = !in_string;
 
-      _tokens.push_back({"\"", TokenType::kQuote});
+      _tokens.push_back(new tok::Quote());
     } else if(line[i] == ';') {
       // done, rest of the line is a comment
       break;
     } else if((std::isspace(line[i]) || line[i] == ',') && !in_string) {
       if(in_lexeme)
-        _tokens.push_back(Token::fromLexeme(line.substr(lexeme_start, i - lexeme_start)));
+        _tokens.push_back(tok::fromLexeme(line.substr(lexeme_start, i - lexeme_start)));
 
       if(line[i] == ',')
-        _tokens.push_back({",", TokenType::kComma});
+        _tokens.push_back(new tok::Comma());
 
       in_lexeme = false;
     } else {
@@ -57,11 +59,11 @@ void Lexer::tokenizeLine(const std::string &line) {
   }
 
   if(in_lexeme)
-    _tokens.push_back(Token::fromLexeme(line.substr(lexeme_start, std::string::npos)));
+    _tokens.push_back(tok::fromLexeme(line.substr(lexeme_start, std::string::npos)));
 
-  _tokens.push_back({"\n", TokenType::kNewline});
+  _tokens.push_back(new tok::Newline());
 }
 
-const std::vector<Token> &Lexer::getTokens() const {
+const std::vector<tok::Token*> &Lexer::getTokens() const {
   return _tokens;
 }

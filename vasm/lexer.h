@@ -1,5 +1,5 @@
-#ifndef _RISC_V_ASM_LEXER_H_
-#define _RISC_V_ASM_LEXER_H_
+#ifndef _VASM_LEXER_H_
+#define _VASM_LEXER_H_
 
 #include <iostream>
 #include <vector>
@@ -14,10 +14,10 @@ public:
   void tokenize(std::istream &is);
   void tokenizeLine(const std::string &line);
 
-  const std::vector<Token> &getTokens() const;
+  const std::vector<tok::Token*> &getTokens() const;
 
 private:
-  std::vector<Token> _tokens;
+  std::vector<tok::Token*> _tokens;
 };
 
 #endif

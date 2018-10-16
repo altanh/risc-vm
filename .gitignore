@@ -3,7 +3,7 @@
 *.o
 risc-vm
 tests
-asm/asm
+vasm/vasm
 *.dSYM/
 
 .DS_Store
