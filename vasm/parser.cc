@@ -14,17 +14,7 @@ Parser::Parser() : _pc(0), _tokens(), _instructions(), _labels() {
 }
 
 Parser::~Parser() {
-  for(tok::Token* tok_ptr : _tokens)
-    if(tok_ptr)
-      delete tok_ptr;
-
-  for(tok::Instruction* inst_ptr : _instructions)
-    if(inst_ptr)
-      delete inst_ptr;
-
-  for(tok::Label* label_ptr : _labels)
-    if(label_ptr)
-      delete label_ptr;
+  clear();
 }
 
 bool Parser::parse(const std::vector<tok::Token*> &tokens) {
@@ -117,6 +107,18 @@ bool Parser::_readTokens(std::vector<tok::Token*>::const_iterator &it,
 }
 
 void Parser::clear() {
+  for(tok::Token* tok_ptr : _tokens)
+    if(tok_ptr)
+      delete tok_ptr;
+
+  for(tok::Instruction* inst_ptr : _instructions)
+    if(inst_ptr)
+      delete inst_ptr;
+
+  for(tok::Label* label_ptr : _labels)
+    if(label_ptr)
+      delete label_ptr;
+
   _tokens.clear();
   _labels.clear();
   _instructions.clear();
