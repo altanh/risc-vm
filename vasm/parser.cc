@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <iterator>
+#include <iomanip>
 #include <cstdint>
 #include <vector>
 #include <stack>
@@ -8,7 +9,7 @@
 #include "parser.h"
 #include "token.h"
 
-Parser::Parser() : _tokens(), _instructions(), _labels() {
+Parser::Parser() : _pc(0), _tokens(), _instructions(), _labels() {
 
 }
 
@@ -27,33 +28,30 @@ Parser::~Parser() {
 }
 
 bool Parser::parse(const std::vector<tok::Token*> &tokens) {
-  _pc = 0;
-
   for(auto it = tokens.cbegin(); it != tokens.cend(); it++) {
     const tok::Token *tok = *it;
     _tokens.push_back(tok->clone());
 
     if(tok->type == TokenType::kInstruction) {
-      if(tok->lexeme == "add") {
-        std::vector<tok::Token*> args;
-        if(!_readTokens(it, tokens.cend(), tok::Instruction::kOpSignature, args)) {
-          std::cerr << "error: parsing failed for instruction \"" 
-                    << tok->lexeme << "\"" << std::endl;
-
-          clear();
-
-          return false;
-        }
-
-        _instructions.push_back(new tok::Instruction(tok->lexeme, args));
-        _pc += 4;
-      } else {
+      std::vector<TokenType> sig;
+      if(!tok::Instruction::getSignature(tok->lexeme, sig)) {
         std::cerr << "error: unsupported instruction \"" << tok->lexeme << "\"" << std::endl;
-
         clear();
-
         return false;
       }
+
+      std::vector<tok::Token*> args;
+      if(!_readTokens(it, tokens.cend(), sig, args)) {
+        std::cerr << "error: parsing failed for instruction \"" 
+                  << tok->lexeme << "\"" << std::endl;
+        clear();
+        return false;
+      }
+
+      _instructions.push_back(new tok::Instruction(tok->lexeme, args));
+      _pc += 4;
+    } else if(tok->type == TokenType::kLabel) {
+      _labels.push_back(new tok::Label(tok->lexeme, _pc));
     } else if(tok->type == TokenType::kNewline) {
       // do nothing
     } else {
@@ -75,6 +73,10 @@ bool Parser::parse(const std::vector<tok::Token*> &tokens) {
     }
 
     std::cout << std::endl;
+  }
+
+  for(auto &l : _labels) {
+    std::cout << "label: " << l->lexeme << "[0x" << std::hex << l->addr << std::dec << "]" << std::endl;
   }
 
   return true;
@@ -105,17 +107,9 @@ bool Parser::_readTokens(std::vector<tok::Token*>::const_iterator &it,
       return false;
     }
 
-    // correct type
-    if(type == TokenType::kRegister) {
-      _tokens.push_back((*it)->clone());
+    _tokens.push_back((*it)->clone());
+    if(type != TokenType::kNewline && type != TokenType::kComma) {
       arg_ptrs.push_back(_tokens.back());
-    } else if(type == TokenType::kNewline || type == TokenType::kComma) {
-      _tokens.push_back((*it)->clone());
-    } else {
-      std::cerr << "error: unsupported token \"" << (*it)->lexeme << "\" of type "
-                << tok::kTypeNames[type] << std::endl;
-
-      return false;
     }
   }
 

@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
 
   std::cout << "-- tokens:" << std::endl;
   for(const auto &tok : lex.getTokens()) {
-    std::cout << "{" << tok->lexeme << ", " << tok::kTypeNames[tok->type] << "}" << std::endl;
+    std::cout << "(" << tok->lexeme << ", " << tok::kTypeNames[tok->type] << ")" << std::endl;
   }
 
   Parser par;

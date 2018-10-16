@@ -93,11 +93,17 @@ struct Instruction : Token {
   std::vector<Token*> args;
 
   static const std::vector<std::string> kNames;
+
+  static const std::vector<std::string> kOpNames;
   static const std::vector<TokenType> kOpSignature;
 
-  Instruction(const std::string &lex, const std::vector<Token*> &arguments);
+  static const std::vector<std::string> kOpImmNames;
+  static const std::vector<TokenType> kOpImmSignature;
 
+  Instruction(const std::string &lex, const std::vector<Token*> &arguments);
   virtual Instruction *clone() const;
+
+  static bool getSignature(const std::string &lex, std::vector<TokenType> &sig_dest);
 };
 
 struct Register : Token {
